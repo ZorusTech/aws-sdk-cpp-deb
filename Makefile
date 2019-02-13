@@ -70,6 +70,9 @@ debian/.%-dev:
 debian/%.so: aws-sdk-cpp/$$(patsubst lib$$(PERCENT),$$(PERCENT),$$(*F))/$$(*F).so
 	@mkdir -p $(@D)
 	cp $< $@
+	if [ "$(*F)" = "libaws-cpp-sdk-core" ]; then \
+		cp -dv aws-sdk-cpp/.deps/install/lib/*.so aws-sdk-cpp/.deps/install/lib/*.so.* $$(dirname $@)/; \
+	fi
 
 SYMBOLS := $(NAMES:%=debian/%/DEBIAN/symbols)
 debian/%/DEBIAN/control: debian/$$*/usr/lib/$$*.so debian/control $$(SYMBOLS)
@@ -86,7 +89,7 @@ debian/%_$(VERSION)_$(ARCH).deb: debian/%/DEBIAN/control debian/$$*/usr/lib/$$*.
 debian/%-dev/DEBIAN/control: debian/$$*/usr/lib/$$*.so debian/control $$(SYMBOLS)
 	@mkdir -p $(@D)
 	echo Architecture: $$(dpkg --print-architecture) > $@
-	echo Depends: '$* (= $(VERSION)), ' $$(dpkg-shlibdeps -O -xlibstdc++6 --warnings=0 --ignore-missing-info $< | sed -e s/shlibs:Depends=// -e 's/\([^ ^,]\+\)\([^,]*\)/\1-dev\2/g' -e s/libpulse0-dev/libpulse-dev/ -e 's/libssl\S\+/libssl-dev/') >> $@
+	echo Depends: '$* (= $(VERSION)), ' $$(dpkg-shlibdeps -O -xlibstdc++6 --warnings=0 --ignore-missing-info $< | sed -e s/shlibs:Depends=// -e 's/\([^ ^,]\+\)\([^,]*\)/\1-dev\2/g' -e s/libpulse0-dev/libpulse-dev/ -e 's/libssl\S\+/libssl-dev/' -e 's/libcurl4-dev/libcurl4-openssl-dev/g') >> $@
 	echo Description: 'AWS C++ SDK headers' >> $@
 	echo Maintainer: 'Lucid Software <ops@lucidchart.com>' >> $@
 	echo Package: $*-dev >> $@
@@ -95,4 +98,9 @@ debian/%-dev/DEBIAN/control: debian/$$*/usr/lib/$$*.so debian/control $$(SYMBOLS
 debian/%-dev_$(VERSION)_$(ARCH).deb: debian/$$*-dev/DEBIAN/control $$(shell find aws-sdk-cpp/$$(patsubst lib$$(PERCENT),$$(PERCENT),$$*)/include -type f -name '*.h')
 	@mkdir -p debian/$*-dev/usr/include
 	rsync -r --include='*/' --include='*.h' --exclude='*' aws-sdk-cpp/$(*:lib%=%)/include/ debian/$*-dev/usr/include/
+	if [ "$*" = "libaws-cpp-sdk-core" ]; then \
+		mkdir -p debian/$*-dev/usr/lib/ ; \
+		rsync -r --include='*/' --include='*.h' --exclude='*' aws-sdk-cpp/.deps/install/include/ debian/$*-dev/usr/include/; \
+		rsync -r --include='*/' --include='*.cmake' --exclude='*' aws-sdk-cpp/.deps/install/lib/ debian/$*-dev/usr/lib/; \
+	fi
 	dpkg-deb -b debian/$*-dev $@
