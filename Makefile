@@ -3,10 +3,11 @@ SHELL := /bin/bash
 PERCENT := %
 
 -include names.makefile
-VERSION ?= 1.0.0
+VERSION ?= 1.7.47
+ARCH ?= $(shell dpkg --print-architecture)
 
 .PHONY: all
-all: $(NAMES:%=debian/%.deb) $(NAMES:%=debian/%-dev.deb)
+all: $(NAMES:%=debian/%_$(VERSION)_$(ARCH).deb) $(NAMES:%=debian/%-dev_$(VERSION)_$(ARCH).deb)
 
 .PHONY:
 bintray: bintray.json
@@ -73,25 +74,25 @@ debian/%.so: aws-sdk-cpp/$$(patsubst lib$$(PERCENT),$$(PERCENT),$$(*F))/$$(*F).s
 SYMBOLS := $(NAMES:%=debian/%/DEBIAN/symbols)
 debian/%/DEBIAN/control: debian/$$*/usr/lib/$$*.so debian/control $$(SYMBOLS)
 	echo Architecture: $$(dpkg --print-architecture) > $@
-	echo Depends: $$(dpkg-shlibdeps -O -xlibstdc++6 --warnings=0  $< | sed s/shlibs:Depends=//) >> $@
+	echo Depends: $$(dpkg-shlibdeps -O -xlibstdc++6 --warnings=0 --ignore-missing-info $< | sed s/shlibs:Depends=//) >> $@
 	echo Description: 'AWS C++ SDK' >> $@
 	echo Maintainer: 'Lucid Software <ops@lucidchart.com>' >> $@
 	echo Package: $* >> $@
 	echo Version: $(VERSION) >> $@
 
-debian/%.deb: debian/%/DEBIAN/control debian/$$*/usr/lib/$$*.so
+debian/%_$(VERSION)_$(ARCH).deb: debian/%/DEBIAN/control debian/$$*/usr/lib/$$*.so
 	dpkg-deb -b debian/$* $@
 
 debian/%-dev/DEBIAN/control: debian/$$*/usr/lib/$$*.so debian/control $$(SYMBOLS)
 	@mkdir -p $(@D)
 	echo Architecture: $$(dpkg --print-architecture) > $@
-	echo Depends: '$* (= $(VERSION)), ' $$(dpkg-shlibdeps -O -xlibstdc++6 --warnings=0  $< | sed -e s/shlibs:Depends=// -e 's/\([^ ^,]\+\)\([^,]*\)/\1-dev\2/g' -e s/libpulse0-dev/libpulse-dev/ -e 's/libssl\S\+/libssl-dev/') >> $@
+	echo Depends: '$* (= $(VERSION)), ' $$(dpkg-shlibdeps -O -xlibstdc++6 --warnings=0 --ignore-missing-info $< | sed -e s/shlibs:Depends=// -e 's/\([^ ^,]\+\)\([^,]*\)/\1-dev\2/g' -e s/libpulse0-dev/libpulse-dev/ -e 's/libssl\S\+/libssl-dev/') >> $@
 	echo Description: 'AWS C++ SDK headers' >> $@
 	echo Maintainer: 'Lucid Software <ops@lucidchart.com>' >> $@
 	echo Package: $*-dev >> $@
 	echo Version: $(VERSION) >> $@
 
-debian/%-dev.deb: debian/$$*-dev/DEBIAN/control $$(shell find aws-sdk-cpp/$$(patsubst lib$$(PERCENT),$$(PERCENT),$$*)/include -type f -name '*.h')
+debian/%-dev_$(VERSION)_$(ARCH).deb: debian/$$*-dev/DEBIAN/control $$(shell find aws-sdk-cpp/$$(patsubst lib$$(PERCENT),$$(PERCENT),$$*)/include -type f -name '*.h')
 	@mkdir -p debian/$*-dev/usr/include
 	rsync -r --include='*/' --include='*.h' --exclude='*' aws-sdk-cpp/$(*:lib%=%)/include/ debian/$*-dev/usr/include/
 	dpkg-deb -b debian/$*-dev $@

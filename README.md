@@ -5,6 +5,7 @@ AWS C++ SDK packaged as .debs.
 ## Build
 
 ```sh
+	make names.makefile
 	make VERSION=<version>
 ```
 
